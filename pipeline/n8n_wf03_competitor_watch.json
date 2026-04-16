@@ -1,0 +1,112 @@
+{
+  "name": "WF-03: AI Affiliate — 競合モニタリング",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 7 * * *"
+            }
+          ]
+        }
+      },
+      "id": "cron-trigger",
+      "name": "Cron (毎日 07:00 JST)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://www.helium10.com/blog/feed/",
+        "options": {}
+      },
+      "id": "rss-h10",
+      "name": "Helium 10 RSS",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1,
+      "position": [480, 200]
+    },
+    {
+      "parameters": {
+        "url": "https://www.junglescout.com/blog/feed/",
+        "options": {}
+      },
+      "id": "rss-js",
+      "name": "Jungle Scout RSS",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1,
+      "position": [480, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// 過去24時間以内の新着記事のみ抽出\nconst cutoff = Date.now() - 24 * 60 * 60 * 1000;\nconst items = $input.all();\nconst fresh = items.filter(item => {\n  const pub = new Date(item.json.pubDate || item.json.isoDate || 0).getTime();\n  return pub > cutoff;\n});\nif (fresh.length === 0) return [{ json: { skip: true, count: 0 } }];\nreturn fresh.map(i => ({ json: { title: i.json.title, link: i.json.link, pubDate: i.json.pubDate, source: i.json.creator || 'unknown' } }));"
+      },
+      "id": "filter-fresh",
+      "name": "24時間以内フィルター",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [720, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {"caseSensitive": false},
+          "conditions": [
+            {
+              "id": "skip-check",
+              "leftValue": "={{ $json.skip }}",
+              "rightValue": true,
+              "operator": {"type": "boolean", "operation": "notEquals"}
+            }
+          ]
+        }
+      },
+      "id": "if-new",
+      "name": "新着あり？",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [960, 300]
+    },
+    {
+      "parameters": {
+        "command": "osascript -e 'display notification \"競合新記事: {{ $json.title }}\" with title \"競合監視\" sound name \"Ping\"'"
+      },
+      "id": "notify",
+      "name": "macOS 通知",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1200, 200]
+    }
+  ],
+  "connections": {
+    "Cron (毎日 07:00 JST)": {
+      "main": [
+        [
+          {"node": "Helium 10 RSS", "type": "main", "index": 0},
+          {"node": "Jungle Scout RSS", "type": "main", "index": 0}
+        ]
+      ]
+    },
+    "Helium 10 RSS": {
+      "main": [[{"node": "24時間以内フィルター", "type": "main", "index": 0}]]
+    },
+    "Jungle Scout RSS": {
+      "main": [[{"node": "24時間以内フィルター", "type": "main", "index": 0}]]
+    },
+    "24時間以内フィルター": {
+      "main": [[{"node": "新着あり？", "type": "main", "index": 0}]]
+    },
+    "新着あり？": {
+      "main": [
+        [{"node": "macOS 通知", "type": "main", "index": 0}],
+        []
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

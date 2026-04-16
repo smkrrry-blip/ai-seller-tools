@@ -1,0 +1,97 @@
+{
+  "name": "WF-01: AI Affiliate — 記事自動生成 & デプロイ",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * 1,4"
+            }
+          ]
+        }
+      },
+      "id": "cron-trigger",
+      "name": "Cron (月・木 09:00 JST)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "command": "cd /Users/shoichionizuka/affiliate-en && ANTHROPIC_API_KEY={{ $vars.ANTHROPIC_API_KEY }} python3 pipeline/batch_generate.py --lang en 2>&1"
+      },
+      "id": "gen-en",
+      "name": "英語記事生成",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [480, 200]
+    },
+    {
+      "parameters": {
+        "command": "cd /Users/shoichionizuka/affiliate-en && ANTHROPIC_API_KEY={{ $vars.ANTHROPIC_API_KEY }} python3 pipeline/batch_generate.py --lang jp 2>&1"
+      },
+      "id": "gen-jp",
+      "name": "日本語記事生成",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [480, 400]
+    },
+    {
+      "parameters": {
+        "command": "cd ~/affiliate-en && git add -A && git diff --cached --quiet || git commit -m 'chore: auto-deploy $(date +%Y-%m-%d)' && git push origin main 2>&1"
+      },
+      "id": "push-en",
+      "name": "ENサイト push",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [720, 200]
+    },
+    {
+      "parameters": {
+        "command": "cd ~/affiliate-jp && git add -A && git diff --cached --quiet || git commit -m 'chore: auto-deploy $(date +%Y-%m-%d)' && git push origin main 2>&1"
+      },
+      "id": "push-jp",
+      "name": "JPサイト push",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [720, 400]
+    },
+    {
+      "parameters": {
+        "command": "osascript -e 'display notification \"記事生成・デプロイ完了 EN+JP\" with title \"AI Affiliate\" sound name \"Glass\"'"
+      },
+      "id": "notify",
+      "name": "macOS 通知",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [960, 300]
+    }
+  ],
+  "connections": {
+    "Cron (月・木 09:00 JST)": {
+      "main": [
+        [
+          {"node": "英語記事生成", "type": "main", "index": 0},
+          {"node": "日本語記事生成", "type": "main", "index": 0}
+        ]
+      ]
+    },
+    "英語記事生成": {
+      "main": [[{"node": "ENサイト push", "type": "main", "index": 0}]]
+    },
+    "日本語記事生成": {
+      "main": [[{"node": "JPサイト push", "type": "main", "index": 0}]]
+    },
+    "ENサイト push": {
+      "main": [[{"node": "macOS 通知", "type": "main", "index": 0}]]
+    },
+    "JPサイト push": {
+      "main": [[{"node": "macOS 通知", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
