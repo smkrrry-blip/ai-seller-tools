@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://smkrrry-blip.github.io/ai-seller-tools/sitemap.xml
