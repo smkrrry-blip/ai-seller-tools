@@ -2,6 +2,18 @@
 # auto_deploy.sh — launchd から呼ばれる自動デプロイスクリプト
 set -e
 
+# ─── APIキーを外部ファイルから読み込み（plist平文漏洩対策 2026-05-01）─────
+if [[ -f "$HOME/.config/anthropic/env" ]]; then
+  source "$HOME/.config/anthropic/env"
+else
+  echo "[FATAL] $HOME/.config/anthropic/env が見つかりません。APIキーが読み込めません。" >&2
+  exit 1
+fi
+if [[ -z "${ANTHROPIC_API_KEY:-}" ]]; then
+  echo "[FATAL] ANTHROPIC_API_KEY が未設定です。" >&2
+  exit 1
+fi
+
 echo "[$(date '+%Y-%m-%d %H:%M')] 自動デプロイ開始"
 
 # 英語記事生成
